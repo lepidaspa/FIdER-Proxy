@@ -29,9 +29,13 @@ mainserver_ref_location = config_testing.MAINSERVER_CONF_FILE
 
 
 
-dir_mirror = 'maps/mirror/'
-dir_geojson = 'maps/geojson/'
+path_mirror = 'maps/mirror/'
+path_geojson = 'maps/geojson/'
+path_manifest = 'conf/manifest.json'
 
 tries_for_connection = 3
+tries_for_lock = 5
+wait_for_connection = 10
+wait_for_unlock = 3
 
 
