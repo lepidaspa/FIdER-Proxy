@@ -5,11 +5,11 @@ import zipfile
 __author__ = 'Antonio Vaccarino'
 __docformat__ = 'restructuredtext en'
 
-from httplib import HTTPException
-from time import sleep
+#from httplib import HTTPException
+#from time import sleep
 import sys
 import os
-import os.path
+#import os.path
 
 from errors import *
 import proxy_config_core as conf

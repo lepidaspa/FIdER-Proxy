@@ -36,3 +36,18 @@ class InvalidShapeArchiveException (RuntimeProxyException):
 # When these exceptions are encountered an administrator should stop the proxy operations and fix or rebuild its filesystem and configuration structures
 class InternalProxyException (Exception):
 	pass
+
+
+# Informs that the required resource has already been unlocked. This should NEVER happen
+class LockReleasedException (InternalProxyException):
+	pass
+
+# Used when we fail to release the lockfile (but may be because of a LockReleasedException) but we still have completed the action that locked the FS so we can return the value. Should be handled by logging withou blocking the rest of the process
+class BadLockReleaseException (InternalProxyException):
+	pass
+
+# Informs that the required resource already has a lock file so it is not possible to set a new one. This is a NORMAL behaviour, not an error, and is used to make the process wait and retry the required operation
+class ResourceLockedException (Exception):
+	pass
+
+

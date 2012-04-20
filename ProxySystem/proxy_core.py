@@ -14,6 +14,11 @@ import os
 import proxy_config_core as conf
 from errors import *
 
+
+
+
+
+
 def verifyUpdateStructure (eventpath):
 	"""
 	Takes the path of the file event and returns, if verified, the identification of proxy, metadata and shape
