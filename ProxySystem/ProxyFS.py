@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import zipfile
+import time
+import proxy_lock
 
 __author__ = 'Antonio Vaccarino'
 __docformat__ = 'restructuredtext en'
@@ -41,11 +43,55 @@ def handleFSChange (eventpath):
 	# otherwise we start the actual file update handling process
 	try:
 		handleFileEvent(eventpath)
+	except Exception as issue:
+		#TODO: add actual mailing code, decide how to log normal events
+		logEvent (issue, True)
+
+
+
+def logEvent (eventdata, iserror=False):
+	"""
+	Logs a standard event. Events are logged to file only, errors to file AND mail.
+	:param eventdata: message
+	:param iserror: boolean, if the event is an error/exception
+	:return:
+	"""
+	ctime = time.time()
+	currentdatetime = time.strftime("%Y-%m-%dT%H:%M:%SZ", ctime)
+	eventstring = "%d %s %s" % (int(ctime*1000), currentdatetime, eventdata)
+
+	#TODO: see if we can handle more gracefully issues in the file logging itself
+	try:
+		logToFile(eventstring)
 	except:
-		#TODO: add actual logging/mailing code
+		eventstring += "; FAILED TO LOG TO FILE"
+
+	try:
+		logToMail(eventstring)
+	except:
 		pass
 
 
+def logToFile (message):
+	"""
+	Appends the message to the FSproxy logfile
+	:param message:
+	:return:
+	"""
+	#TODO: remove filename placeholder, see if we can suggest different files from the ProxyFS module (proxy_id is actually determined further down in the process)
+	logfile = os.path.join (conf.log_folder, "proxyops.log")
+	fp = open(logfile,"a")
+	fp.write("\n"+message)
+	fp.close()
+
+def logToMail (message):
+	"""
+	Sends the message via mail to the proxy-set recipients
+	:param message:
+	:return:
+	"""
+	#TODO: PLACEHOLDER, IMPLEMENT
+	pass
 
 def handleFileEvent (eventpath):
 	"""
@@ -62,28 +108,33 @@ def handleFileEvent (eventpath):
 
 	proxy_id, meta_id, shape_id = proxy_core.verifyUpdateStructure(eventpath)
 
+	locker = proxy_lock.ProxyLocker (retries=3, wait=5)
+
 	upsert = None
 	# Determining if the event is an upsert or a delete
 	if not os.path.exists(eventpath):
 		# delete
-		proxy_core.handleDelete (proxy_id, meta_id, shape_id)
+		#proxy_core.handleDelete (proxy_id, meta_id, shape_id)
+		locker.performLocked(proxy_core.handleDelete, proxy_id, meta_id, shape_id)
 	elif zipfile.is_zipfile(eventpath):
 		# upsert
-		proxy_core.handleUpsert (proxy_id, meta_id, shape_id)
+		#proxy_core.handleUpsert (proxy_id, meta_id, shape_id)
+		locker.performLocked(proxy_core.handleUpsert, proxy_id, meta_id, shape_id)
 		upsert = (shape_id,)
 	else:
 		# wrong file type or directory creation
 		raise InvalidFSOperationException ("Unexpected file type or operation on path %s" % eventpath)
 
-	#TODO: If the updating of the $mirror directory has  been completed properly (i.e. no exceptions), we rebuild the geoJSON for the specified meta
-
 	if upsert is not None:
 		shapedata = proxy_core.rebuildShape(proxy_id, meta_id, shape_id, modified=True)
-		proxy_core.replicateShapeData (shapedata, proxy_id, meta_id, shape_id, modified=True)
+		#proxy_core.replicateShapeData (shapedata, proxy_id, meta_id, shape_id, modified=True)
+		locker.performLocked(proxy_core.replicateShapeData, shapedata, proxy_id, meta_id, shape_id, modified=True)
 	else:
 		# this is a delete
-		proxy_core.replicateDelete (proxy_id, meta_id, shape_id)
+		#proxy_core.replicateDelete (proxy_id, meta_id, shape_id)
+		locker.performLocked(proxy_core.replicateDelete, proxy_id, meta_id, shape_id)
 
+	#no need of locking for this, since it simply adds/updates a file to the /next dir
 	proxy_core.queueForSend(proxy_id, meta_id)
 
 	#TODO: if the server is a write/full server, we launch the server update process
