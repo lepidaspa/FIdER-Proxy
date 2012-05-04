@@ -164,10 +164,16 @@ def convertShapefileToJson (path_shape):
 	:return: geojson feature data
 	"""
 
+	shape_id = os.path.split(path_shape)
+
+	#TODO: verify key name for shape id information
+
 	collection = {
+		'id' : shape_id,
 		'type': 'FeatureCollection',
 		'features' : []
 	}
+
 
 	try:
 		datasource = ogr.Open(path_shape)
@@ -184,8 +190,36 @@ def convertShapefileToJson (path_shape):
 
 			collection['features'].append(jsondata)
 
+
+
 	return collection
 
+def assembleMetaJson (proxy_id, meta_id):
+	"""
+	Creates a list of (dict)json objects from the files in the gjs section of the soft proxy and returns it
+	:param proxy_id:
+	:param meta_id:
+	:return: list of dicts (from json)
+	"""
+
+	meta_json = []
+
+	filelist = os.listdir(os.path.join (conf.baseproxypath, proxy_id, conf.path_geojson, meta_id))
+
+	for filename in filelist:
+		try:
+			fp = open(filename, 'r')
+			try:
+				meta_json.append(json.load(fp))
+			except:
+				raise RuntimeProxyException ("Non valid json data in file %s for meta %s on proxy %s" % (filename, meta_id, proxy_id))
+			finally:
+				fp.close()
+		except:
+			raise RuntimeProxyException ("Could not access map data %s for meta %s on proxy %s" % (filename, meta_id, proxy_id))
+
+
+	return meta_json
 
 def rebuildShape (proxy_id, meta_id, shape_id, modified=True):
 	"""
@@ -275,10 +309,6 @@ def queueForSend (proxy_id, meta_id):
 	nextfilepath = os.path.join (conf.baseproxypath, proxy_id, "next", meta_id)
 
 	open(nextfilepath, 'w').close()
-
-
-
-
 
 
 
